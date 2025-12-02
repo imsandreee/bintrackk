@@ -96,7 +96,7 @@ if(isset($_POST['login'])){
         if($_SESSION['role'] === 'admin'){
             header("Location: back-end/admin_dashboard.php");
         } else {
-            header("Location: front-end/citizen_dashboard.php");
+            header("Location: citizen_dashboard.php");
         }
         exit();
     } else {
@@ -221,5 +221,7 @@ if(isset($_POST['login'])){
         </div>
     </div>
 
+
+    
 </body>
 </html>
