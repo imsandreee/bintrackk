@@ -1,0 +1,3 @@
+<?php
+$supabase_url = "https://imwqlozdfvugwqwdcrag.supabase.co";
+$supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imltd3Fsb3pkZnZ1Z3dxd2RjcmFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MDMxNzYsImV4cCI6MjA3OTk3OTE3Nn0.HSNerKsc1-QX09vvyGnImtRJaKMNXL3sNCvIPM9kf7E";
