@@ -1,82 +1,56 @@
 <?php
-// PHP logic provided by the user
-include '../back-end/config.php'; // Assuming this file exists and defines $supabase_url and $supabase_key
-session_start(); // Start session to potentially store messages or tokens, though not used in this specific logic
-
+include '../back-end/config.php'; // $supabase_url, $supabase_key
+session_start();
 $message = '';
 
-// Exponential backoff configuration
-$max_retries = 3;
-$initial_delay = 1;
-
 if(isset($_POST['register'])){
-    $email = $_POST['email'];
-    $password = $_POST['password'];
-    $username = $_POST['username'];
-    $role = $_POST['role'] ?? 'citizen'; // Default role to 'citizen' if not explicitly set
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+    $username = trim($_POST['username']);
+    $role = $_POST['role'] ?? 'citizen';
 
+    // Hash the password before inserting
+    $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+
+    // Prepare user data for Supabase table
     $data = [
         'email' => $email,
-        'password' => $password,
-        // The 'data' key here is specific to Supabase's user_metadata field
-        'options' => ['data' => ['username'=>$username,'role'=>$role]]
+        'password' => $hashed_password,
+        'username' => $username,
+        'role' => $role,
+        'created_at' => date('Y-m-d H:i:s')
     ];
 
-    $delay = $initial_delay;
-    $result = null;
+    $ch = curl_init("$supabase_url/rest/v1/users"); // your Supabase table endpoint
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "apikey: $supabase_key",
+        "Authorization: Bearer $supabase_key", // use service role key for write access
+        "Content-Type: application/json",
+        "Prefer: return=representation" // optional: return inserted record
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 
-    for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
-        $ch = curl_init("$supabase_url/auth/v1/signup");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "apikey: $supabase_key",
-            "Content-Type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        $result = json_decode($response, true);
-        curl_close($ch);
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
 
-        // Success condition (Supabase returns 200/201 on successful signup)
-        if ($http_code === 200 || $http_code === 201) {
-            break; 
-        }
-        
-        // Retry logic for server errors/timeouts
-        if ($http_code >= 500 || $curl_error) {
-            if ($attempt < $max_retries) {
-                usleep($delay * 1000000); 
-                $delay *= 2; 
-                continue;
-            } else {
-                $result = ['message' => "Supabase service unavailable or API error. Max retries reached."];
-                break;
-            }
-        }
-        
-        // Non-retryable error (e.g., 400 Bad Request)
-        break;
-    }
-
-
-    if(isset($result['user']) && $result['user'] !== null){
-        // Supabase often sends a confirmation email (if enabled). User should check their inbox.
-        $message = "Registration successful! Please check your email to confirm your account. <a href='index.php' class='font-medium text-emerald-600 hover:text-emerald-500'>Login here</a>";
+    if($http_code === 201){ // 201 Created
+        $message = "Registration successful! You can now <a href='index.php' class='font-medium text-emerald-600 hover:text-emerald-500'>login</a>.";
     } else {
-        $error_message = $result['message'] ?? 'An unknown error occurred.';
-        // Map common errors to user-friendly messages
-        if (strpos($error_message, 'User already registered') !== false) {
-             $message = "Registration failed: This email address is already in use.";
+        $error_message = $curl_error ?: $response;
+        if(strpos($error_message, 'duplicate key') !== false){
+            $message = "Registration failed: This email is already registered.";
         } else {
-             $message = "Registration failed: " . htmlspecialchars($error_message);
+            $message = "Registration failed: " . htmlspecialchars($error_message);
         }
     }
 }
 ?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

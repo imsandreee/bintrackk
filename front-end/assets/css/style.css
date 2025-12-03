@@ -188,3 +188,40 @@
         width: 100%;
     }
 }
+
+/* admin_dashbaord.php */
+
+/* Custom font import (Poppins) */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100..900&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif; /* Changed to Poppins */
+            background-color: #f0fdf4; /* Light green background */
+        }
+        /* Custom scrollbar styling for better aesthetics */
+        .sidebar {
+            scrollbar-width: thin;
+            scrollbar-color: #10b981 #1f2937; /* Green scrollbar */
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background-color: #10b981; /* Green-500 */
+            border-radius: 20px;
+            border: 2px solid #1f2937;
+        }
+        .nav-item:hover .icon {
+            transform: scale(1.1);
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        .fill-level-bar {
+            height: 8px;
+            border-radius: 9999px;
+            width: 100%;
+            background-color: #e5e7eb; /* Gray-200 */
+        }

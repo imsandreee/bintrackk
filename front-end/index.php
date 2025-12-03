@@ -1,116 +1,56 @@
 <?php
-// PHP logic provided by the user
-include '../back-end/config.php'; // Assuming this file exists and defines $supabase_url and $supabase_key
+include '../back-end/config.php'; // $supabase_url, $supabase_key
 session_start();
 $message = '';
 
 if(isset($_POST['login'])){
-    $email = $_POST['email'];
-    $password = $_POST['password'];
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
 
-    $data = ['email'=>$email,'password'=>$password];
-    
-    // Using exponential backoff for a more robust API call (retrying up to 3 times)
-    $max_retries = 3;
-    $delay = 1;
+    // Fetch user from Supabase 'users' table
+    $ch = curl_init("$supabase_url/rest/v1/users?email=eq.$email");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "apikey: $supabase_key",
+        "Authorization: Bearer $supabase_key",
+        "Content-Type: application/json",
+        "Accept: application/json"
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
 
-    for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
-        $ch = curl_init("$supabase_url/auth/v1/token?grant_type=password");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "apikey: $supabase_key",
-            "Content-Type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        $result = json_decode($response,true);
-        curl_close($ch);
+    if($http_code === 200){
+        $users = json_decode($response, true);
+        if(count($users) > 0){
+            $user = $users[0]; // Supabase returns an array
+            // Verify password
+            if(password_verify($password, $user['password'])){
+                $_SESSION['user_email'] = $user['email'];
+                $_SESSION['role'] = $user['role'] ?? 'citizen';
 
-        // Check if authentication was successful (HTTP 200) or if it's a non-retryable error (e.g., 4xx)
-        if ($http_code === 200) {
-            break; // Success, exit loop
-        }
-        
-        // If it's a server error (5xx) or timeout, retry with exponential backoff
-        if ($http_code >= 500 || $curl_error) {
-            if ($attempt < $max_retries) {
-                // Wait before retrying
-                usleep($delay * 1000000); // Convert seconds to microseconds
-                $delay *= 2; // Exponential increase
-                continue;
-            } else {
-                // Max retries reached
-                $result = ['error_description' => "Supabase service unavailable or API error. Max retries reached."];
-                break;
-            }
-        }
-        
-        // Non-successful but non-retryable response (e.g., 400 Bad Request, 401 Unauthorized)
-        break;
-    }
-
-
-    if(isset($result['access_token'])){
-        $_SESSION['access_token'] = $result['access_token'];
-        $_SESSION['user_email'] = $email;
-
-        // Fetch user role - Using exponential backoff here too
-        $delay2 = 1;
-        $user_data = null;
-        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
-            $ch2 = curl_init("$supabase_url/auth/v1/user");
-            curl_setopt($ch2, CURLOPT_HTTPHEADER, [
-                "apikey: $supabase_key",
-                "Authorization: Bearer ".$result['access_token']
-            ]);
-            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-            $user_resp = curl_exec($ch2);
-            $http_code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-            $user_data = json_decode($user_resp,true);
-            curl_close($ch2);
-
-            if ($http_code2 === 200) {
-                break; // Success
-            }
-
-            if ($http_code2 >= 500 || $curl_error) {
-                if ($attempt < $max_retries) {
-                    usleep($delay2 * 1000000);
-                    $delay2 *= 2;
-                    continue;
+                // Redirect based on role
+                if($_SESSION['role'] === 'admin'){
+                    header("Location: ../back-end/admin_dashboard.php");
                 } else {
-                    $user_data = ['error' => 'Failed to fetch user data after login.'];
-                    break;
+                    header("Location: citizen_dashboard.php");
                 }
+                exit();
+            } else {
+                $message = "Login failed: Incorrect password.";
             }
-            break;
-        }
-        
-        // Determine role and redirect
-        $_SESSION['role'] = $user_data['user_metadata']['role'] ?? 'citizen';
-
-        if($_SESSION['role'] === 'admin'){
-            header("Location: back-end/admin_dashboard.php");
         } else {
-            header("Location: citizen_dashboard.php");
+            $message = "Login failed: User not found.";
         }
-        exit();
     } else {
-        // Display generic message for security, or the detailed error for debugging
-        $error_message = $result['error_description'] ?? 'An unknown error occurred.';
-        // Map common errors to user-friendly messages
-        if (strpos($error_message, 'Invalid login credentials') !== false) {
-             $message = "Login failed: Please check your email and password.";
-        } else {
-             $message = "Login failed: " . $error_message;
-        }
+        $error_message = $curl_error ?: $response;
+        $message = "Login failed: " . htmlspecialchars($error_message);
     }
 }
 ?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

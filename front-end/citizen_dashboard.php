@@ -7,7 +7,6 @@ if(!isset($_SESSION['access_token']) || $_SESSION['role'] !== 'citizen'){
 ?>
 <h2>Citizen Dashboard</h2>
 <p>Welcome, <?php echo $_SESSION['user_email']; ?>!</p>
-<a href="logout.php">Logout</a>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,10 +28,12 @@ if(!isset($_SESSION['access_token']) || $_SESSION['role'] !== 'citizen'){
                 </div>
             </div>
         <nav>
-            <a href="#">Dashboard</a>
-            <a href="#">My Reports</a>
-            <a href="#">Guidelines</a>
-<a href="../back-end/logout.php" class="btn-logout">Logout</a>
+            <a href="citizen_dashboard.php">Dashboard</a>
+            <a href="citizen_reports.php">My Reports</a>
+            <a href="citizen_guide.php">Guidelines</a>
+            <button class="btn-login">
+                <a href="logout.php">Log Out</a>
+            </button>
         </nav>
     </header>
 
@@ -342,6 +343,6 @@ body {
     }
 }
 </Style>
-
+ <script src="script.js"></script>
 </body>
 </html>
